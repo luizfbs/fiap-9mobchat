@@ -88,7 +88,7 @@ var communicator = (function () {
     }
 
     function formatTime(time) {
-        var date = new Date();
+        var date = new Date(time);
         return dateFormat = //date.getFullYear() + "-" + fixZero(date.getMonth() + 1) + "-" + fixZero(date.getDay()) + " " +
             fixZero(date.getHours()) + ":" + fixZero(date.getMinutes()) + ":" + fixZero(date.getSeconds());
     }
@@ -262,14 +262,14 @@ var accelerometer = (function () {
 })();
 
 var webSocket = (function () {
-    var endpoint = "ws://127.0.0.1:9000";
+    var endpoint = "ws://server-9mobchat.rhcloud.com:8000"; 
     var socket = null;
 
     var userId = null;
     var connected = false;
 
     var onSocketError = function (error) {
-        console.log('Websocket error: ' + error);
+        console.log('Websocket error: ', error);
     };
 
     var onSocketOpen = function (event) {

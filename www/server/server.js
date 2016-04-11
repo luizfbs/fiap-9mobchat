@@ -1,54 +1,58 @@
-﻿var webSocketsServer = require('websocket').server;
+﻿var ipaddress = process.env.OPENSHIFT_NODEJS_IP || "127.0.0.1";
+var port      = process.env.OPENSHIFT_NODEJS_PORT || 8080;
+
+var WebSocketServer = require('ws').Server
 var http = require('http');
 
-var webSocketsServerPort = 8080;
 var clients = [];
 
-var server = http.createServer(function (request, response) {
+var server = http.createServer(function(request, response) {
+    Log('Received request for ' + request.url);
+});
+
+server.listen( port, ipaddress, function() {
+    Log('Server is listening on port ' + port);
+});
+
+wss = new WebSocketServer({
+    server: server,
+    autoAcceptConnections: false
+});
+
+wss.on('connection', function(ws) {
+  Log("Connected: " + ws.origin);
+
+  ws.on('message', function (message) {
+     Log("New message received: " + message);
+     message = JSON.parse(message);
+
+     if (message.type === 'register') {
+          Log("Registering user: " + message.id);
+          clients.push({ id: message.id, connection: ws });
+     } else {
+          for (var i = 0; i < clients.length; i++) {
+              if (clients[i].id === message.to || clients[i].id === message.from) {
+                  if (clients[i].connection.readyState === 1) {
+                      Log("Sending to: " + clients[i].id);
+                      clients[i].connection.send(JSON.stringify(message));
+                  } else {
+                      clients.splice(clients.indexOf(clients[i]), 1);
+                  }
+              }
+          }
+     }
+  });
 
 });
 
-server.listen(webSocketsServerPort, function () {
-    Log("Server is listening on port " + webSocketsServerPort);
-});
-
-var wsServer = new webSocketsServer({
-    httpServer: server
-});
-
-wsServer.on('request', function (request) {
-    var connection = request.accept(null, request.origin);
-    Log("Connected: " + request.origin);
-   
-    connection.on('message', function (message) {
-        Log("New message: " + message.utf8Data);
-
-        if (message.type === 'utf8') {
-            var data = JSON.parse(message.utf8Data);
-
-            if (data.type === 'register') {
-                Log("Registering user: " + data.id);
-                clients.push({ id: data.id, connection: connection });
-            } else {
-                for (var i = 0; i < clients.length; i++) {
-                    if (clients[i].id === data.to || clients[i].id === data.from) {
-                        Log("Sending message to: " + clients[i].id);
-                        clients[i].connection.sendUTF(message.utf8Data);
-                    }
-                }
-            }
-        }
-    });
-
-    connection.on('close', function (connection) {
-        for (var i = 0; i < clients.length; i++) {
-            if (clients[i].connection == connection) {
-                Log("Killing connection with: " + clients[i].id);
-                clients.splice(clients[i]);
-                Log('Disconnected: ' + connection);
-            }
-        }
-    });
+wss.on('close', function (ws) {
+   for (var i = 0; i < clients.length; i++) {
+      if (clients[i].connection == ws) {
+         Log("Killing connection with: " + clients[i].id);
+         clients.splice(clients.indexOf(clients[i]), 1);
+         Log('Disconnected: ' + ws);
+      }
+   }
 });
 
 function Log(message) {
@@ -62,3 +66,5 @@ function Log(message) {
 function fixZero(i) {
     return i < 10 ? '0' + i : i;
 }
+
+console.log("Listening to " + ipaddress + ":" + port + "...");
