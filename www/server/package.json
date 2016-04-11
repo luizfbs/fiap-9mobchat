@@ -1,0 +1,9 @@
+{
+	"version": "1.0.0",
+	"name": "9MobChatServer",
+	"private": true,
+  "devDependencies": {
+    "websocket": "^1.0.22",
+    "http": "^0.0.0"
+  }
+}
