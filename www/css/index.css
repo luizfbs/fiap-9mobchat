@@ -139,3 +139,12 @@ h1 {
     transform-style: preserve-3d;
     margin: 0px 5px;
 }
+
+.ui-li-has-thumb{
+    min-height: initial !important;
+    padding: .7em 1em !important;
+}
+
+.message-image{
+    max-width: 100%;
+}

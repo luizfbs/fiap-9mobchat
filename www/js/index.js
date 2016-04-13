@@ -9,6 +9,9 @@ var communicator = (function () {
     var onSendMessage = function () {
         var message = $('#message').val();
 
+        if (!!message == false)
+            return;
+
         webSocket.sendMessage(message, 'text', to, from);
         $('#message').val('');
     };
@@ -18,7 +21,7 @@ var communicator = (function () {
     }
 
     var saveMessage = function (value, type, _to, _from) {
-        console.log(_from, from, _to, to)
+
         if ((from == _from && to == _to) || (from == _to && to == _from)) {
             var message = { value: value, type: type, from: _from, to: _to, time: new Date().getTime() };
             savedMessages.push(message);
@@ -69,7 +72,7 @@ var communicator = (function () {
     var appendMessage = function (value, type, _from, _to, time) {
         var li = $('<li>');
         if (type == 'text') {
-            if(!!_from){
+            if (!!_from) {
                 li.text('(' + formatTime(time) + ') ' + _from + ': ' + value);
             } else {
                 li.text(value);
@@ -79,8 +82,11 @@ var communicator = (function () {
             var div = $('<div>');
 
             div.text('(' + formatTime(time) + ') ' + _from + ': ');
+            div.append('<br />');
+            img.addClass('message-image');
+
             li.append(div);
-            li.append(+img);
+            li.append(img);
         } else {
             alert('Command not found');
         }
@@ -155,6 +161,7 @@ var userData = (function () {
             });
 
             $('#users').listview('refresh');
+            webSocket.init(val);
         }
     });
 
@@ -213,7 +220,6 @@ var userData = (function () {
             var from = $('#user-select').val();
 
             communicator.init(to);
-            webSocket.init(from);
         }
     }
 
@@ -231,6 +237,16 @@ var accelerometer = (function () {
     var transforms = ['-webkit-transform', '-moz-transform', '-ms-transform', 'transform'];
 
     var accelerometerSuccess = function (data) {
+        var from = $('#user-select').val();
+        webSocket.sendMessage(JSON.stringify(data), 'accelerometer', 'all', from);
+    };
+
+    var accelerometerError = function () {
+        console.error('accelerometerError');
+    };
+
+    var rotatePhone = function (data, id) {
+        var data = JSON.parse(data);
         var rotate = {};
 
         transforms.forEach(function (attr) {
@@ -242,12 +258,10 @@ var accelerometer = (function () {
             rotate[attr] = rotateX + rotateY + rotateZ;
         });
 
-        $('#box-phone-d1').css(rotate);
-    };
-
-    var accelerometerError = function () {
-        console.log('accelerometerError');
-    };
+        console.log(id);
+        console.log('#box-phone-' + id)
+        $('#box-phone-' + id).css(rotate);
+    }
 
     return {
         init: function () {
@@ -257,23 +271,24 @@ var accelerometer = (function () {
             accelerometerError,
             options
         );
-        }
+        },
+        rotatePhone: rotatePhone
     };
 })();
 
 var webSocket = (function () {
-    var endpoint = "ws://server-9mobchat.rhcloud.com:8000"; 
+    var endpoint = "ws://127.0.0.1:9000";
     var socket = null;
 
     var userId = null;
     var connected = false;
 
     var onSocketError = function (error) {
-        console.log('Websocket error: ', error);
+        console.error('Websocket error: ', error);
     };
 
     var onSocketOpen = function (event) {
-        console.log('Connected to: ' + endpoint);
+        console.info('Connected to: ' + endpoint);
         connected = true;
 
         var data = JSON.stringify({ type: 'register', id: userId });
@@ -282,14 +297,18 @@ var webSocket = (function () {
 
     var onSocketMessage = function (event) {
         var message = event.data;
-        console.log('Received: ' + message);
+        console.info('Received: ' + message);
 
         var data = JSON.parse(message);
-        communicator.saveMessage(data.message, data.type, data.to, data.from);
+        if (data.type == 'text' || data.type == 'image64') {
+            communicator.saveMessage(data.message, data.type, data.to, data.from);
+        }else if(data.type == 'accelerometer'){
+            accelerometer.rotatePhone(data.message, data.from);
+        }
     };
 
     var onSocketClose = function (event) {
-        console.log('Disconnected');
+        console.info('Disconnected');
     };
 
     return {
